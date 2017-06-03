@@ -3,3 +3,4 @@
 /data/*.idx
 /data/*.lst
 /data/*.rec
+*.pyc
