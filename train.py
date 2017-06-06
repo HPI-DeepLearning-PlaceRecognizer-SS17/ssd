@@ -84,6 +84,7 @@ def parse_args():
                         help='use difficult ground-truths in evaluation')
     parser.add_argument('--voc07', dest='use_voc07_metric', type=bool, default=True,
                         help='use PASCAL VOC 07 11-point metric')
+    parser.add_argument('--cpu', dest='cpu', type=bool, default=False, help='Use CPU for training. Not recommended.')
     args = parser.parse_args()
     return args
 
@@ -108,7 +109,7 @@ if __name__ == '__main__':
     args = parse_args()
     # context list
     ctx = [mx.gpu(int(i)) for i in args.gpus.split(',') if i.strip()]
-    ctx = [mx.cpu()] if not ctx else ctx
+    ctx = [mx.cpu()] if not ctx or args.cpu else ctx
     # class names if applicable
     class_names = parse_class_names(args)
     # start training

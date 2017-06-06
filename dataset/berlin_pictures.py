@@ -15,7 +15,7 @@ def loadJson(fileName):
 
 class BerlinPictures(Imdb):
     """
-    Implementation of Imdb for Pascal VOC datasets
+    Implementation of Imdb for Berlin datasets
 
     Parameters:
     ----------
@@ -37,9 +37,9 @@ class BerlinPictures(Imdb):
         self.is_train = is_train
 
         if self.image_set == 'train':
-            self.subFolder = 'training'
+            self.sub_folder = 'training'
         elif self.image_set == 'val':
-            self.subFolder = 'validation'
+            self.sub_folder = 'validation'
 
         classJson = loadJson(os.path.join(self.data_path, 'labels.json'))
         for index, value in enumerate(classJson):
@@ -83,7 +83,7 @@ class BerlinPictures(Imdb):
         """
 
         # Just load all jpgs in the folder
-        files = os.listdir(os.path.join(self.data_path, self.subFolder))
+        files = os.listdir(os.path.join(self.data_path, self.sub_folder))
         files = filter(lambda file: file.endswith(self.extension), files)
         files = map(lambda file: file.replace(self.extension, ''), files)
         files = sorted(files)
@@ -107,7 +107,7 @@ class BerlinPictures(Imdb):
         """
         assert self.image_set_index is not None, "Dataset not initialized"
         name = self.image_set_index[index]
-        image_file = os.path.join(os.path.join(self.data_path, self.subFolder), name + self.extension)
+        image_file = os.path.join(os.path.join(self.data_path, self.sub_folder), name + self.extension)
         assert os.path.exists(image_file), 'Path does not exist: {}'.format(image_file)
         return image_file
 
@@ -139,7 +139,7 @@ class BerlinPictures(Imdb):
         ----------
         full path of annotation file
         """
-        label_file = os.path.join(os.path.join(self.data_path, self.subFolder), index + '.json')
+        label_file = os.path.join(os.path.join(self.data_path, self.sub_folder), index + '.json')
         assert os.path.exists(label_file), 'Path does not exist: {}'.format(label_file)
         return label_file
 

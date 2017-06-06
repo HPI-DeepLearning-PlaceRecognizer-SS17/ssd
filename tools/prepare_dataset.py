@@ -6,7 +6,7 @@ curr_path = os.path.abspath(os.path.dirname(__file__))
 sys.path.append(os.path.join(curr_path, '..'))
 from dataset.pascal_voc import PascalVoc
 from dataset.concat_db import ConcatDB
-from dataset.berlinPictures import BerlinPictures
+from dataset.berlin_pictures import BerlinPictures
 
 def load_pascal(image_set, year, devkit_path, shuffle=False):
     """
@@ -92,7 +92,7 @@ if __name__ == '__main__':
     print("List file {} generated...".format(args.target))
 
     subprocess.check_call(["python",
-        os.path.join(curr_path, "../../../tools/im2rec.py"),
+        os.path.join(curr_path, "im2rec.py"),
         os.path.abspath(args.target), os.path.abspath(args.root_path),
         "--shuffle", str(int(args.shuffle)), "--pack-label", "1"])
 

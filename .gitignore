@@ -3,4 +3,10 @@
 /data/*.idx
 /data/*.lst
 /data/*.rec
+/data/*.json
+/data/training/
+/data/validation/
 *.pyc
+*.log
+.idea/
+.DS_Store
