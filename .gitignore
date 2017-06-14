@@ -8,5 +8,6 @@
 /data/validation/
 *.pyc
 *.log
-.idea/
+.idea/**/*
 .DS_Store
+annotate.sh
