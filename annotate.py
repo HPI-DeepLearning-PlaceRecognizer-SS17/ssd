@@ -125,7 +125,7 @@ def store_annotation(annotations_folder, image, dets, threshold, classes):
     annotation_file = os.path.join(annotations_folder, best_detection['id'] + '.json')
     with open(annotation_file, 'w') as output:
         json.dump(best_detection, output)
-        return 1
+    return 1 if 'label' in best_detection else 0
 
 
 def filename_wo_ext(path):
