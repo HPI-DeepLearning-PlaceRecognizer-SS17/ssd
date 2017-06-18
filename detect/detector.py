@@ -137,6 +137,7 @@ class Detector(object):
                     class_name = str(cls_id)
                     if classes and len(classes) > cls_id:
                         class_name = classes[cls_id]
+
                     plt.gca().text(xmin, ymin - 2,
                                     '{:s} {:.3f}'.format(class_name, score),
                                     bbox=dict(facecolor=colors[cls_id], alpha=0.5),

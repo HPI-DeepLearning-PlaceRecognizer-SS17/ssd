@@ -1,0 +1,2 @@
+#!/usr/bin/env bash
+python annotate.py --epoch 6 --dir /home/place-recognizer-students/flickr-workflow/0-crawled-data/$1 --limit $2 --batch 100 --classes berlinerdom,brandenburgertor,rathausberlin,reichstag

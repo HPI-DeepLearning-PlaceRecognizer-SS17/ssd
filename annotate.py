@@ -53,17 +53,20 @@ def parse_args():
     # Necessary for annotation
     parser.add_argument('--dir', dest='dir', default='./data/demo',
                         help='Directory of images', type=str)
-    parser.add_argument('--output', dest='output', default='annotations',
+    parser.add_argument('--output', dest='output', default='',
                         help='Name of the output dir, rel. to the input dir', type=str)
     parser.add_argument('--pattern', dest='pattern', type=str, default='*.jpg',
                         help='Glob pattern for the image files')
-    parser.add_argument('--batch', dest='batch', type=float, default=20,
+    parser.add_argument('--batch', dest='batch', type=float, default=100,
                         help='Batch size (detection of images at once)')
     parser.add_argument('--classes', dest='classes', type=str,
                         default='berlinerdom,brandenburgertor,rathausberlin,reichstag',
                         help='Classes to detect')
-    parser.add_argument('--move', dest='move', help='Move annotated images to annotations folder',
-                        action='store_true', default=False)
+    parser.add_argument('--filter', dest='filter',
+                        help='Remove images that werent classified for the mentioned label',
+                        default='')
+    parser.add_argument('--limit', dest='limit',
+                        help='limits the number of annotated images', default=500)
 
     # Taken from demo.py. Typically can be left untouched
     parser.add_argument('--prefix', dest='prefix', help='trained model prefix',
@@ -93,32 +96,35 @@ def parse_args():
     return parser.parse_args()
 
 
-def annotate(detector, annotations_folder, imagelist, threshold, batchsize, classes, move_file):
+def annotate(detector, annotations_folder, imagelist, threshold, batchsize, classes):
     batches = int(math.ceil(len(imagelist) / float(batchsize)))
     for i in range(0, batches):
         annotate_batch(detector, annotations_folder,
                        imagelist[i * batchsize:min((i + 1) * batchsize, len(image_list))],
-                       threshold, classes, move_file)
+                       threshold, classes)
 
 
-def annotate_batch(detector, annotations_folder, imagelist, threshold, classes, move_file):
+def annotate_batch(detector, annotations_folder, imagelist, threshold, classes):
     dets = detector.im_detect(imagelist, "", "", True)
     assert len(dets) == len(imagelist)
     success = 0
     for k, det in enumerate(dets):
-        success += store_annotation(annotations_folder, imagelist[k], det, threshold, classes, move_file)
+        success += store_annotation(annotations_folder, imagelist[k], det, threshold, classes)
     print "Found annotations for ", success, "of", len(imagelist), "images"
 
 
-def store_annotation(annotations_folder, image, dets, threshold, classes, move_file):
+def should_filter(label):
+    global args
+    if args.filter != '' and label != args.filter:
+        print 'Skipping label', label
+        return True
+    return False
+
+def store_annotation(annotations_folder, image, dets, threshold, classes):
     best_detection = get_best_detection(dets, threshold, image, classes)
     annotation_file = os.path.join(annotations_folder, best_detection['id'] + '.json')
-    if 'label' not in best_detection:
-        return 0
     with open(annotation_file, 'w') as output:
         json.dump(best_detection, output)
-        if move_file:
-            os.rename(image, os.path.join(annotations_folder, os.path.basename(image)))
         return 1
 
 
@@ -129,33 +135,49 @@ def filename_wo_ext(path):
 
 
 def get_best_detection(dets, thresh, image_path, classes):
-    height, width = cv2.imread(image_path).shape[0:2]
     detection = {
         "id": filename_wo_ext(image_path),
-        "score": thresh
+        "score": 0,
+        "annotationStatus": "none"
     }
     for i in range(dets.shape[0]):
         cls_id = int(dets[i, 0])
         if cls_id >= 0:
             score = float(dets[i, 1])
-            if score > detection['score']:
-                xmin = int(dets[i, 2] * width)
-                ymin = int(dets[i, 3] * height)
-                xmax = int(dets[i, 4] * width)
-                ymax = int(dets[i, 5] * height)
+            if score > detection['score'] and score > thresh:
+                xmin = dets[i, 2]
+                ymin = dets[i, 3]
+                xmax = dets[i, 4]
+                ymax = dets[i, 5]
                 detection['score'] = score
                 detection['boundingBox'] = {
-                    "x": xmin,
-                    "y": ymin,
-                    "width": xmax - xmin,
-                    "height": ymax - ymin
+                    "x": float(xmin),
+                    "y": float(ymin),
+                    "width": float(xmax - xmin),
+                    "height": float(ymax - ymin)
                 }
                 class_name = str(cls_id)
                 if classes and len(classes) > cls_id:
                     class_name = classes[cls_id]
                 detection['label'] = str(class_name)
+                detection['annotationStatus'] = 'autoAnnotated'
     return detection
 
+def filter_images(folder, image_list, limit):
+    to_annotate = []
+    for image in image_list:
+        if len(to_annotate) >= limit:
+            return to_annotate
+        id = filename_wo_ext(image)
+        annotation_path = os.path.join(folder, id+".json")
+        if os.path.exists(annotation_path):
+            with open(annotation_path) as data_file:
+                data = json.load(data_file)
+                if 'annotationStatus' not in data or data['annotationStatus'] == 'none':
+                    to_annotate.append(image)
+        else:
+            to_annotate.append(image)
+    return to_annotate
 
 if __name__ == '__main__':
     args = parse_args()
@@ -170,7 +192,8 @@ if __name__ == '__main__':
         os.mkdir(annotations_path)
 
     image_glob = os.path.join(args.dir, args.pattern)
-    image_list = glob.glob(image_glob)
+    image_list = filter_images(args.dir, glob.glob(image_glob), int(args.limit))
+
     assert len(image_list) > 0, "No valid image specified to detect"
     network = args.network
     detector = get_detector(network, args.prefix, args.epoch,
@@ -179,5 +202,5 @@ if __name__ == '__main__':
                             ctx,
                             args.classes.split(","),
                             args.nms_thresh, args.force_nms)
-    annotate(detector, annotations_path, image_list, args.thresh, args.batch,
-             args.classes.split(","), args.move)
+    annotate(detector, annotations_path, image_list, args.thresh, int(args.batch),
+             args.classes.split(","))

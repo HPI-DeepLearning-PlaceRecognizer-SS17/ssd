@@ -65,7 +65,7 @@ def parse_args():
     parser.add_argument('--mean-b', dest='mean_b', type=float, default=104,
                         help='blue mean value')
     parser.add_argument('--thresh', dest='thresh', type=float, default=0.5,
-                        help='object visualize score threshold, default 0.6')
+                        help='object visualize score threshold, default 0.5')
     parser.add_argument('--nms', dest='nms_thresh', type=float, default=0.5,
                         help='non-maximum suppression threshold, default 0.5')
     parser.add_argument('--force', dest='force_nms', type=bool, default=True,
@@ -95,4 +95,4 @@ if __name__ == '__main__':
                             ctx, args.nms_thresh, args.force_nms)
     # run detection
     detector.detect_and_visualize(image_list, args.dir, args.extension,
-                                  CLASSES, args.thresh, args.show_timer)
+                                  CLASSES, args.thresh, True)
