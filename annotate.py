@@ -65,6 +65,10 @@ def parse_args():
     parser.add_argument('--filter', dest='filter',
                         help='Remove images that werent classified for the mentioned label',
                         default='')
+    parser.add_argument('--label', dest='label',
+                        help='The label we are searching right now',
+                        default='')
+
 
     # Taken from demo.py. Typically can be left untouched
     parser.add_argument('--prefix', dest='prefix', help='trained model prefix',
@@ -133,6 +137,7 @@ def filename_wo_ext(path):
 
 
 def get_best_detection(dets, thresh, image_path, classes):
+    global args
     detection = {
         "id": filename_wo_ext(image_path),
         "score": 0,
@@ -142,7 +147,10 @@ def get_best_detection(dets, thresh, image_path, classes):
         cls_id = int(dets[i, 0])
         if cls_id >= 0:
             score = float(dets[i, 1])
-            if score > detection['score'] and score > thresh:
+            class_name = str(cls_id)
+            if classes and len(classes) > cls_id:
+                class_name = str(classes[cls_id])
+            if (score > detection['score'] or (detection['label'] != args.label and class_name == args.label)) and score > thresh:
                 xmin = dets[i, 2]
                 ymin = dets[i, 3]
                 xmax = dets[i, 4]
@@ -154,10 +162,7 @@ def get_best_detection(dets, thresh, image_path, classes):
                     "width": float(xmax - xmin),
                     "height": float(ymax - ymin)
                 }
-                class_name = str(cls_id)
-                if classes and len(classes) > cls_id:
-                    class_name = classes[cls_id]
-                detection['label'] = str(class_name)
+                detection['label'] = class_name
                 detection['annotationStatus'] = 'autoAnnotated'
     return detection
 
@@ -191,7 +196,7 @@ if __name__ == '__main__':
 
     image_glob = os.path.join(args.dir, args.pattern)
     image_list = filter_images(args.dir, glob.glob(image_glob))
-    print len(image_list)
+    print "Going to process", len(image_list), "images"
     assert len(image_list) > 0, "No valid image specified to detect"
     network = args.network
     detector = get_detector(network, args.prefix, args.epoch,
