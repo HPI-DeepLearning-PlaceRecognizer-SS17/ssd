@@ -174,7 +174,7 @@ def filter_images(folder, image_list):
                     to_annotate.append(image)
         else:
             to_annotate.append(image)
-    print len(to_annotate)
+    #print len(to_annotate)
     return to_annotate
 
 if __name__ == '__main__':
@@ -192,7 +192,7 @@ if __name__ == '__main__':
     image_glob = os.path.join(args.dir, args.pattern)
     image_list = filter_images(args.dir, glob.glob(image_glob))
 
-    assert len(image_list) == 0, "No valid image specified to detect"
+    assert len(image_list) > 0, "No valid image specified to detect"
     network = args.network
     detector = get_detector(network, args.prefix, args.epoch,
                             args.data_shape,
