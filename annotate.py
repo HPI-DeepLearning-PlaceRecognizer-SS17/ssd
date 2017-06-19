@@ -170,8 +170,9 @@ def filter_images(folder, image_list):
         annotation_path = os.path.join(folder, id+".json")
         if os.path.exists(annotation_path):
             with open(annotation_path) as data_file:
-                print data['annotationStatus'], data['annotationStatus'] in valid_states
+
                 data = json.load(data_file)
+                print data['annotationStatus'], data['annotationStatus'] in valid_states
                 if 'annotationStatus' not in data \
                         or data['annotationStatus'] in valid_states:
                     to_annotate.append(image)
