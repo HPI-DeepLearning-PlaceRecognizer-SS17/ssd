@@ -65,8 +65,6 @@ def parse_args():
     parser.add_argument('--filter', dest='filter',
                         help='Remove images that werent classified for the mentioned label',
                         default='')
-    parser.add_argument('--limit', dest='limit',
-                        help='limits the number of annotated images', default="-1")
 
     # Taken from demo.py. Typically can be left untouched
     parser.add_argument('--prefix', dest='prefix', help='trained model prefix',
@@ -163,16 +161,16 @@ def get_best_detection(dets, thresh, image_path, classes):
                 detection['annotationStatus'] = 'autoAnnotated'
     return detection
 
-def filter_images(folder, image_list, limit):
+def filter_images(folder, image_list):
     to_annotate = []
     valid_states = ['none', 'autoAnnotated', 'autoAnnotated-NeedsImprovement']
     for image in image_list:
-        if len(to_annotate) >= limit and limit > -1:
-            return to_annotate
+        print(image)
         id = filename_wo_ext(image)
         annotation_path = os.path.join(folder, id+".json")
         if os.path.exists(annotation_path):
             with open(annotation_path) as data_file:
+                print data['annotationStatus'], data['annotationStatus'] in valid_states
                 data = json.load(data_file)
                 if 'annotationStatus' not in data \
                         or data['annotationStatus'] in valid_states:
@@ -194,7 +192,7 @@ if __name__ == '__main__':
         os.mkdir(annotations_path)
 
     image_glob = os.path.join(args.dir, args.pattern)
-    image_list = filter_images(args.dir, glob.glob(image_glob), int(args.limit))
+    image_list = filter_images(args.dir, glob.glob(image_glob))
 
     assert len(image_list) > 0, "No valid image specified to detect"
     network = args.network
