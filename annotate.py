@@ -43,7 +43,7 @@ def get_detector(net, prefix, epoch, data_shape, mean_pixels, ctx,
     if net is not None:
         net = importlib.import_module("symbol_" + net) \
             .get_symbol(len(CLASSES), nms_thresh, force_nms)
-    detector = Detector(net, prefix + "berlin_" + str(data_shape), epoch, \
+    detector = Detector(net, prefix + "_" + str(data_shape), epoch, \
                         data_shape, mean_pixels, ctx=ctx)
     return detector
 
