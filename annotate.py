@@ -191,7 +191,7 @@ if __name__ == '__main__':
 
     image_glob = os.path.join(args.dir, args.pattern)
     image_list = filter_images(args.dir, glob.glob(image_glob))
-
+    print len(image_list)
     assert len(image_list) > 0, "No valid image specified to detect"
     network = args.network
     detector = get_detector(network, args.prefix, args.epoch,
