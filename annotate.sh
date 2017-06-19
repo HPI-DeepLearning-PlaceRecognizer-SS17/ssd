@@ -1,2 +1,2 @@
 #!/usr/bin/env bash
-python annotate.py --epoch 6 --dir /home/place-recognizer-students/flickr-workflow/0-crawled-data/$1 --limit $2 --batch 100 --classes berlinerdom,brandenburgertor,rathausberlin,reichstag
+python annotate.py --epoch $1 --dir /home/place-recognizer-students/flickr-workflow/crawled-data/$2 --batch 1000 --classes berlinerdom,brandenburgertor,rathausberlin,reichstag

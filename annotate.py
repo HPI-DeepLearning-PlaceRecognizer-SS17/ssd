@@ -57,7 +57,7 @@ def parse_args():
                         help='Name of the output dir, rel. to the input dir', type=str)
     parser.add_argument('--pattern', dest='pattern', type=str, default='*.jpg',
                         help='Glob pattern for the image files')
-    parser.add_argument('--batch', dest='batch', type=float, default=100,
+    parser.add_argument('--batch', dest='batch', type=float, default=1000,
                         help='Batch size (detection of images at once)')
     parser.add_argument('--classes', dest='classes', type=str,
                         default='berlinerdom,brandenburgertor,rathausberlin,reichstag',
@@ -66,7 +66,7 @@ def parse_args():
                         help='Remove images that werent classified for the mentioned label',
                         default='')
     parser.add_argument('--limit', dest='limit',
-                        help='limits the number of annotated images', default=500)
+                        help='limits the number of annotated images', default="-1")
 
     # Taken from demo.py. Typically can be left untouched
     parser.add_argument('--prefix', dest='prefix', help='trained model prefix',
@@ -165,15 +165,17 @@ def get_best_detection(dets, thresh, image_path, classes):
 
 def filter_images(folder, image_list, limit):
     to_annotate = []
+    valid_states = ['none', 'autoAnnotated', 'autoAnnotated-NeedsImprovement']
     for image in image_list:
-        if len(to_annotate) >= limit:
+        if len(to_annotate) >= limit and limit > -1:
             return to_annotate
         id = filename_wo_ext(image)
         annotation_path = os.path.join(folder, id+".json")
         if os.path.exists(annotation_path):
             with open(annotation_path) as data_file:
                 data = json.load(data_file)
-                if 'annotationStatus' not in data or data['annotationStatus'] == 'none':
+                if 'annotationStatus' not in data \
+                        or data['annotationStatus'] in valid_states:
                     to_annotate.append(image)
         else:
             to_annotate.append(image)

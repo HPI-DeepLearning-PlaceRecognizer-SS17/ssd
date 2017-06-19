@@ -12,3 +12,4 @@
 .DS_Store
 localAnnotate.sh
 .idea/
+*.iml
