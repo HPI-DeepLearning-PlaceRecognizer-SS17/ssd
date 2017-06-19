@@ -170,7 +170,6 @@ def filter_images(folder, image_list):
         annotation_path = os.path.join(folder, id+".json")
         if os.path.exists(annotation_path):
             with open(annotation_path) as data_file:
-
                 data = json.load(data_file)
                 print data['annotationStatus'], data['annotationStatus'] in valid_states
                 if 'annotationStatus' not in data \
@@ -195,7 +194,7 @@ if __name__ == '__main__':
     image_glob = os.path.join(args.dir, args.pattern)
     image_list = filter_images(args.dir, glob.glob(image_glob))
 
-    assert len(image_list) > 0, "No valid image specified to detect"
+    assert len(image_list) == 0, "No valid image specified to detect"
     network = args.network
     detector = get_detector(network, args.prefix, args.epoch,
                             args.data_shape,
