@@ -150,7 +150,7 @@ def get_best_detection(dets, thresh, image_path, classes):
             class_name = str(cls_id)
             if classes and len(classes) > cls_id:
                 class_name = str(classes[cls_id])
-            if (score > detection['score'] or (detection['label'] != args.label and class_name == args.label)) and score > thresh:
+            if (class_name != "none" and score > detection['score'] or (detection['label'] != args.label and class_name == args.label)) and score > thresh:
                 xmin = dets[i, 2]
                 ymin = dets[i, 3]
                 xmax = dets[i, 4]
