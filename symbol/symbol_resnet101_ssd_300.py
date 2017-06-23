@@ -88,6 +88,7 @@ def resnet(units, num_stages, filter_list, num_classes, image_shape, bottle_neck
     """
     num_unit = len(units)
     assert(num_unit == num_stages)
+    label = mx.symbol.Variable(name="label")
     data = mx.sym.Variable(name='data')
     data = mx.sym.BatchNorm(data=data, fix_gamma=True, eps=2e-5, momentum=bn_mom, name='bn_data')
     (nchannel, height, width) = image_shape
@@ -105,18 +106,17 @@ def resnet(units, num_stages, filter_list, num_classes, image_shape, bottle_neck
 
         #First shortcut has different dimension in input and output, needs special treatment
         #thats controlled with dim_match=false
-        body = residual_unit(body, filter_list[i+1], (1 if i==0 else 2, 1 if i==0 else 2), False,
+        (body, reluLayer) = residual_unit(body, filter_list[i+1], (1 if i==0 else 2, 1 if i==0 else 2), False,
                              name='stage%d_unit%d' % (i + 1, 1), bottle_neck=bottle_neck, workspace=workspace,
                              memonger=memonger)
         #dim_match true follows.
         for j in range(units[i]-1):
-            print "sup " + str(j) + str(i)
-            a= residual_unit(body, filter_list[i+1], (1,1), True, name='stage%d_unit%d' % (i + 1, j + 2),
+            (body, reluLayer)= residual_unit(data=body, num_filter=filter_list[i+1], stride=(1,1), dim_match=True, name='stage%d_unit%d' % (i + 1, j + 2),
                                  bottle_neck=bottle_neck, workspace=workspace, memonger=memonger)
-            (body, reluLayer) = a
-        if i == 3:
-            #we are in block 4 and attach MultiBox layer here, so remember this spot
+        if i == 2:
+            #we are in block 4 (??) and attach MultiBox layer here, so remember this spot
             relu4_2 = reluLayer
+    relu5_2‘ = reluLayer
     bn1 = mx.sym.BatchNorm(data=body, fix_gamma=False, eps=2e-5, momentum=bn_mom, name='bn1')
     relu1 = mx.sym.Activation(data=bn1, act_type='relu', name='relu1')
 
@@ -138,7 +138,7 @@ def resnet(units, num_stages, filter_list, num_classes, image_shape, bottle_neck
     conv_extra_11_2, relu_extra_11_2 = conv_act_layer(relu_extra_11_1, "11_2", 256, kernel=(3,3), pad=(0,0), \
         stride=(1,1), act_type="relu", use_batchnorm=False)
 
-    from_layers = [relu4_2, relu_extra_8_2, relu_extra_9_2, relu_extra_10_2, relu_extra_11_2]
+    from_layers = [relu4_2, relu5_2, relu_extra_8_2, relu_extra_9_2, relu_extra_10_2, relu_extra_11_2]
     sizes = [[.1, .141], [.2,.272], [.37, .447], [.54, .619], [.71, .79], [.88, .961]]
     ratios = [[1,2,.5], [1,2,.5,3,1./3], [1,2,.5,3,1./3], [1,2,.5,3,1./3], \
         [1,2,.5], [1,2,.5]]
@@ -170,8 +170,8 @@ def resnet(units, num_stages, filter_list, num_classes, image_shape, bottle_neck
     # monitoring training status
     cls_label = mx.symbol.MakeLoss(data=cls_target, grad_scale=0, name="cls_label")
     det = mx.contrib.symbol.MultiBoxDetection(*[cls_prob, loc_preds, anchor_boxes], \
-        name="detection", nms_threshold=nms_thresh, force_suppress=force_suppress,
-        variances=(0.1, 0.1, 0.2, 0.2), nms_topk=nms_topk)
+        name="detection", nms_threshold=0.5, force_suppress=False,
+        variances=(0.1, 0.1, 0.2, 0.2), nms_topk=400)
     det = mx.symbol.MakeLoss(data=det, grad_scale=0, name="det_out")
 
     # group output
