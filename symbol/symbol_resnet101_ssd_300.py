@@ -50,7 +50,7 @@ def residual_unit(data, num_filter, stride, dim_match, name, bottle_neck=True, b
                                             workspace=workspace, name=name+'_sc')
         if memonger:
             shortcut._set_attr(mirror_stage='True')
-        return conv3 + shortcut
+        return (conv3 + shortcut, act3)
     else:
         bn1 = mx.sym.BatchNorm(data=data, fix_gamma=False, momentum=bn_mom, eps=2e-5, name=name + '_bn1')
         act1 = mx.sym.Activation(data=bn1, act_type='relu', name=name + '_relu1')
@@ -67,10 +67,10 @@ def residual_unit(data, num_filter, stride, dim_match, name, bottle_neck=True, b
                                             workspace=workspace, name=name+'_sc')
         if memonger:
             shortcut._set_attr(mirror_stage='True')
-        return conv2 + shortcut
+        return (conv2 + shortcut, act2)
 
 def resnet(units, num_stages, filter_list, num_classes, image_shape, bottle_neck=True, bn_mom=0.9, workspace=256, memonger=False):
-    """Return ResNet symbol of
+    """Return SSD-ResNet 101 symbol 
     Parameters
     ----------
     units : list
@@ -102,9 +102,6 @@ def resnet(units, num_stages, filter_list, num_classes, image_shape, bottle_neck
         body = mx.symbol.Pooling(data=body, kernel=(3, 3), stride=(2,2), pad=(1,1), pool_type='max')
 
     for i in range(num_stages):
-        if i == 3:
-            #we are in block 4 and attach MultiBox layer here, so remember this spot
-            body_before_conv5_1 = body
 
         #First shortcut has different dimension in input and output, needs special treatment
         #thats controlled with dim_match=false
@@ -113,38 +110,86 @@ def resnet(units, num_stages, filter_list, num_classes, image_shape, bottle_neck
                              memonger=memonger)
         #dim_match true follows.
         for j in range(units[i]-1):
-            body = residual_unit(body, filter_list[i+1], (1,1), True, name='stage%d_unit%d' % (i + 1, j + 2),
+            print "sup " + str(j) + str(i)
+            a= residual_unit(body, filter_list[i+1], (1,1), True, name='stage%d_unit%d' % (i + 1, j + 2),
                                  bottle_neck=bottle_neck, workspace=workspace, memonger=memonger)
+            (body, reluLayer) = a
+        if i == 3:
+            #we are in block 4 and attach MultiBox layer here, so remember this spot
+            relu4_2 = reluLayer
     bn1 = mx.sym.BatchNorm(data=body, fix_gamma=False, eps=2e-5, momentum=bn_mom, name='bn1')
     relu1 = mx.sym.Activation(data=bn1, act_type='relu', name='relu1')
-    #remember body after last conv, we also attach a multiboy layer here
-    #body_after_conv5 = body #actually they do not do this, exception for resnet101
 
-    #Now we add "Five additional convolutional layers with decaying spatial resolution are appended,
-    # which have depths 512, 512, 256, 256, 128
-    conv_add1 = mx.sym.Convolution(data=body, num_filter=512, kernel=(1,1), stride=(1,1), pad=(0,0),
-                                      no_bias=True, workspace=workspace, name='add_conv1')
-    conv_add2 = mx.sym.Convolution(data=conv_add1, num_filter=512, kernel=(3,3), stride=(1,1), pad=(1,1),
-                                      no_bias=True, workspace=workspace, name='add_conv2')
-    conv_add3 = mx.sym.Convolution(data=conv_add2, num_filter=256, kernel=(1,1), stride=(1,1), pad=(0,0),
-                                      no_bias=True, workspace=workspace, name='add_conv3')
-    conv_add4 = mx.sym.Convolution(data=conv_add3, num_filter=256, kernel=(3,3), stride=(1,1), pad=(1,1),
-                                      no_bias=True, workspace=workspace, name='add_conv4')
-    conv_add5 = mx.sym.Convolution(data=conv_add3, num_filter=128, kernel=(3,3), stride=(1,1), pad=(1,1),
-                                      no_bias=True, workspace=workspace, name='add_conv5')
+    ### ssd extra layers, same as in VGG atm. NOT like the google guys did ###
+    conv_extra_8_1, relu_extra_8_1 = conv_act_layer(body, "8_1", 256, kernel=(1,1), pad=(0,0), \
+        stride=(1,1), act_type="relu", use_batchnorm=False)
+    conv_extra_8_2, relu_extra_8_2 = conv_act_layer(relu_extra_8_1, "8_2", 512, kernel=(3,3), pad=(1,1), \
+        stride=(2,2), act_type="relu", use_batchnorm=False)
+    conv_extra_9_1, relu_extra_9_1 = conv_act_layer(relu_extra_8_2, "9_1", 128, kernel=(1,1), pad=(0,0), \
+        stride=(1,1), act_type="relu", use_batchnorm=False)
+    conv_extra_9_2, relu_extra_9_2 = conv_act_layer(relu_extra_9_1, "9_2", 256, kernel=(3,3), pad=(1,1), \
+        stride=(2,2), act_type="relu", use_batchnorm=False)
+    conv_extra_10_1, relu_extra_10_1 = conv_act_layer(relu_extra_9_2, "10_1", 128, kernel=(1,1), pad=(0,0), \
+        stride=(1,1), act_type="relu", use_batchnorm=False)
+    conv_extra_10_2, relu_extra_10_2 = conv_act_layer(relu_extra_10_1, "10_2", 256, kernel=(3,3), pad=(0,0), \
+        stride=(1,1), act_type="relu", use_batchnorm=False)
+    conv_extra_11_1, relu_extra_11_1 = conv_act_layer(relu_extra_10_2, "11_1", 128, kernel=(1,1), pad=(0,0), \
+        stride=(1,1), act_type="relu", use_batchnorm=False)
+    conv_extra_11_2, relu_extra_11_2 = conv_act_layer(relu_extra_11_1, "11_2", 256, kernel=(3,3), pad=(0,0), \
+        stride=(1,1), act_type="relu", use_batchnorm=False)
 
+    from_layers = [relu4_2, relu_extra_8_2, relu_extra_9_2, relu_extra_10_2, relu_extra_11_2]
+    sizes = [[.1, .141], [.2,.272], [.37, .447], [.54, .619], [.71, .79], [.88, .961]]
+    ratios = [[1,2,.5], [1,2,.5,3,1./3], [1,2,.5,3,1./3], [1,2,.5,3,1./3], \
+        [1,2,.5], [1,2,.5]]
+    normalizations = [20, -1, -1, -1, -1, -1]
+    steps = [ x / 300.0 for x in [8, 16, 32, 64, 100, 300]]
+    num_channels = [512]
+
+    loc_preds, cls_preds, anchor_boxes = multibox_layer(from_layers, \
+        num_classes, sizes=sizes, ratios=ratios, normalization=normalizations, \
+        num_channels=num_channels, clip=False, interm_layer=0, steps=steps)
+
+    tmp = mx.contrib.symbol.MultiBoxTarget(
+        *[anchor_boxes, label, cls_preds], overlap_threshold=.5, \
+        ignore_label=-1, negative_mining_ratio=3, minimum_negative_samples=0, \
+        negative_mining_thresh=.5, variances=(0.1, 0.1, 0.2, 0.2),
+        name="multibox_target")
+    loc_target = tmp[0]
+    loc_target_mask = tmp[1]
+    cls_target = tmp[2]
+
+    cls_prob = mx.symbol.SoftmaxOutput(data=cls_preds, label=cls_target, \
+        ignore_label=-1, use_ignore=True, grad_scale=1., multi_output=True, \
+        normalization='valid', name="cls_prob")
+    loc_loss_ = mx.symbol.smooth_l1(name="loc_loss_", \
+        data=loc_target_mask * (loc_preds - loc_target), scalar=1.0)
+    loc_loss = mx.symbol.MakeLoss(loc_loss_, grad_scale=1., \
+        normalization='valid', name="loc_loss")
+
+    # monitoring training status
+    cls_label = mx.symbol.MakeLoss(data=cls_target, grad_scale=0, name="cls_label")
+    det = mx.contrib.symbol.MultiBoxDetection(*[cls_prob, loc_preds, anchor_boxes], \
+        name="detection", nms_threshold=nms_thresh, force_suppress=force_suppress,
+        variances=(0.1, 0.1, 0.2, 0.2), nms_topk=nms_topk)
+    det = mx.symbol.MakeLoss(data=det, grad_scale=0, name="det_out")
+
+    # group output
+    out = mx.symbol.Group([cls_prob, loc_loss, cls_label, det])
+    return out
+    
+    ### OLD HEAD OF RESNET
     # Although kernel is not used here when global_pool=True, we should put one
-    pool1 = mx.symbol.Pooling(data=relu1, global_pool=True, kernel=(7, 7), pool_type='avg', name='pool1')
-    flat = mx.symbol.Flatten(data=pool1)
-    fc1 = mx.symbol.FullyConnected(data=flat, num_hidden=num_classes, name='fc1')
-    return mx.symbol.SoftmaxOutput(data=fc1, name='softmax')
+    #pool1 = mx.symbol.Pooling(data=relu1, global_pool=True, kernel=(7, 7), pool_type='avg', name='pool1')
+    #flat = mx.symbol.Flatten(data=pool1)
+    #fc1 = mx.symbol.FullyConnected(data=flat, num_hidden=num_classes, name='fc1')
+    #return mx.symbol.SoftmaxOutput(data=fc1, name='softmax')
 
-def get_symbol(num_classes=6, num_layers=101, image_shape=(3,300,300), conv_workspace=256, **kwargs):
+def get_symbol_train(num_classes=6, num_layers=101, image_shape=(3,300,300), conv_workspace=256, **kwargs):
     """
     Adapted from https://github.com/tornadomeet/ResNet/blob/master/train_resnet.py
     Original author Wei Wu
     """
-    image_shape = [int(l) for l in image_shape.split(',')]
     (nchannel, height, width) = image_shape
     if height <= 28:
         num_stages = 3
@@ -173,8 +218,8 @@ def get_symbol(num_classes=6, num_layers=101, image_shape=(3,300,300), conv_work
             units = [3, 4, 6, 3]
         elif num_layers == 50:
             units = [3, 4, 6, 3]
-        #next one counts
-        elif num_layers == 101:
+
+        elif num_layers == 101: #we only care about this but left the rest in
             units = [3, 4, 23, 3]
         elif num_layers == 152:
             units = [3, 8, 36, 3]
@@ -192,3 +237,39 @@ def get_symbol(num_classes=6, num_layers=101, image_shape=(3,300,300), conv_work
                   image_shape = image_shape,
                   bottle_neck = bottle_neck,
                   workspace   = conv_workspace)
+
+
+
+def get_symbol(num_classes=20, nms_thresh=0.5, force_suppress=False, nms_topk=400):
+    """
+    Single-shot multi-box detection with VGG 16 layers ConvNet
+    This is a modified version, with fc6/fc7 layers replaced by conv layers
+    And the network is slightly smaller than original VGG 16 network
+    This is the detection network
+
+    Parameters:
+    ----------
+    num_classes: int
+        number of object classes not including background
+    nms_thresh : float
+        threshold of overlap for non-maximum suppression
+    force_suppress : boolean
+        whether suppress different class objects
+    nms_topk : int
+        apply NMS to top K detections
+
+    Returns:
+    ----------
+    mx.Symbol
+    """
+    net = get_symbol_train(num_classes)
+    cls_preds = net.get_internals()["multibox_cls_pred_output"]
+    loc_preds = net.get_internals()["multibox_loc_pred_output"]
+    anchor_boxes = net.get_internals()["multibox_anchors_output"]
+
+    cls_prob = mx.symbol.SoftmaxActivation(data=cls_preds, mode='channel', \
+        name='cls_prob')
+    out = mx.contrib.symbol.MultiBoxDetection(*[cls_prob, loc_preds, anchor_boxes], \
+        name="detection", nms_threshold=nms_thresh, force_suppress=force_suppress,
+        variances=(0.1, 0.1, 0.2, 0.2), nms_topk=nms_topk)
+    return out
