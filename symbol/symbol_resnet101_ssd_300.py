@@ -106,46 +106,66 @@ def resnet(units, num_stages, filter_list, num_classes, image_shape, bottle_neck
 
         #First shortcut has different dimension in input and output, needs special treatment
         #thats controlled with dim_match=false
+        name='stage%d_unit%d'% (i + 1, 1)
         (body, reluLayer) = residual_unit(body, filter_list[i+1], (1 if i==0 else 2, 1 if i==0 else 2), False,
-                             name='stage%d_unit%d' % (i + 1, 1), bottle_neck=bottle_neck, workspace=workspace,
+                             name=name , bottle_neck=bottle_neck, workspace=workspace,
                              memonger=memonger)
         #dim_match true follows.
         for j in range(units[i]-1):
-            (body, reluLayer)= residual_unit(data=body, num_filter=filter_list[i+1], stride=(1,1), dim_match=True, name='stage%d_unit%d' % (i + 1, j + 2),
-                                 bottle_neck=bottle_neck, workspace=workspace, memonger=memonger)
-        if i == 2:
-            #we are in block 4 (??) and attach MultiBox layer here, so remember this spot
-            relu4_2 = reluLayer
-    relu5_2‘ = reluLayer
+            name='stage%d_unit%d' % (i + 1, j + 2)
+            (body, reluLayer)= residual_unit(data=body, num_filter=filter_list[i+1], stride=(1,1), dim_match=True,
+                                             name=name, bottle_neck=bottle_neck, workspace=workspace, memonger=memonger)
+            if i == 2 and j == 21:
+                #we are in block 4 (??) and attach MultiBox layer here, so remember this spot
+                relu4_2 = reluLayer
+    relu5_2 = reluLayer
     bn1 = mx.sym.BatchNorm(data=body, fix_gamma=False, eps=2e-5, momentum=bn_mom, name='bn1')
     relu1 = mx.sym.Activation(data=bn1, act_type='relu', name='relu1')
 
-    ### ssd extra layers, same as in VGG atm. NOT like the google guys did ###
-    conv_extra_8_1, relu_extra_8_1 = conv_act_layer(body, "8_1", 256, kernel=(1,1), pad=(0,0), \
+    ### ssd extra layers, taken from wei liu's resnet101_ssd_caffe.py AddExtraLayer###
+    conv_extra_8_1, relu_extra_8_1 = conv_act_layer(body, "extra8_1", 256, kernel=(1,1), pad=(0,0), \
         stride=(1,1), act_type="relu", use_batchnorm=False)
-    conv_extra_8_2, relu_extra_8_2 = conv_act_layer(relu_extra_8_1, "8_2", 512, kernel=(3,3), pad=(1,1), \
+    conv_extra_8_2, relu_extra_8_2 = conv_act_layer(relu_extra_8_1, "extra8_2", 512, kernel=(3,3), pad=(1,1), \
         stride=(2,2), act_type="relu", use_batchnorm=False)
-    conv_extra_9_1, relu_extra_9_1 = conv_act_layer(relu_extra_8_2, "9_1", 128, kernel=(1,1), pad=(0,0), \
+    conv_extra_9_1, relu_extra_9_1 = conv_act_layer(relu_extra_8_2, "extra9_1", 256, kernel=(1,1), pad=(0,0), \
         stride=(1,1), act_type="relu", use_batchnorm=False)
-    conv_extra_9_2, relu_extra_9_2 = conv_act_layer(relu_extra_9_1, "9_2", 256, kernel=(3,3), pad=(1,1), \
+    conv_extra_9_2, relu_extra_9_2 = conv_act_layer(relu_extra_9_1, "extra9_2", 512, kernel=(3,3), pad=(1,1), \
         stride=(2,2), act_type="relu", use_batchnorm=False)
-    conv_extra_10_1, relu_extra_10_1 = conv_act_layer(relu_extra_9_2, "10_1", 128, kernel=(1,1), pad=(0,0), \
+    conv_extra_10_1, relu_extra_10_1 = conv_act_layer(relu_extra_9_2, "extra10_1", 256, kernel=(1,1), pad=(0,0), \
         stride=(1,1), act_type="relu", use_batchnorm=False)
-    conv_extra_10_2, relu_extra_10_2 = conv_act_layer(relu_extra_10_1, "10_2", 256, kernel=(3,3), pad=(0,0), \
-        stride=(1,1), act_type="relu", use_batchnorm=False)
-    conv_extra_11_1, relu_extra_11_1 = conv_act_layer(relu_extra_10_2, "11_1", 128, kernel=(1,1), pad=(0,0), \
-        stride=(1,1), act_type="relu", use_batchnorm=False)
-    conv_extra_11_2, relu_extra_11_2 = conv_act_layer(relu_extra_11_1, "11_2", 256, kernel=(3,3), pad=(0,0), \
-        stride=(1,1), act_type="relu", use_batchnorm=False)
+    conv_extra_10_2, relu_extra_10_2 = conv_act_layer(relu_extra_10_1, "extra10_2", 512, kernel=(3,3), pad=(1,1), \
+        stride=(2,2), act_type="relu", use_batchnorm=False)
+    #Although kernel is not used here when global_pool=True, we should put one
+    pool6 = mx.symbol.Pooling(data=relu_extra_10_2, global_pool=True, kernel=(7, 7), pool_type='avg', name='globalpool1')
 
-    from_layers = [relu4_2, relu5_2, relu_extra_8_2, relu_extra_9_2, relu_extra_10_2, relu_extra_11_2]
+    ### ssd extra layers, same as in VGG atm. NOT like the google guys did ###
+    #conv_extra_8_1, relu_extra_8_1 = conv_act_layer(body, "8_1", 256, kernel=(1,1), pad=(0,0), \
+    #    stride=(1,1), act_type="relu", use_batchnorm=False)
+    #conv_extra_8_2, relu_extra_8_2 = conv_act_layer(relu_extra_8_1, "8_2", 512, kernel=(3,3), pad=(1,1), \
+    #    stride=(2,2), act_type="relu", use_batchnorm=False)
+    #conv_extra_9_1, relu_extra_9_1 = conv_act_layer(relu_extra_8_2, "9_1", 128, kernel=(1,1), pad=(0,0), \
+    #    stride=(1,1), act_type="relu", use_batchnorm=False)
+    #conv_extra_9_2, relu_extra_9_2 = conv_act_layer(relu_extra_9_1, "9_2", 256, kernel=(3,3), pad=(1,1), \
+    #    stride=(2,2), act_type="relu", use_batchnorm=False)
+    #conv_extra_10_1, relu_extra_10_1 = conv_act_layer(relu_extra_9_2, "10_1", 128, kernel=(1,1), pad=(0,0), \
+    #    stride=(1,1), act_type="relu", use_batchnorm=False)
+    #conv_extra_10_2, relu_extra_10_2 = conv_act_layer(relu_extra_10_1, "10_2", 256, kernel=(3,3), pad=(0,0), \
+    #    stride=(1,1), act_type="relu", use_batchnorm=False)
+    #conv_extra_11_1, relu_extra_11_1 = conv_act_layer(relu_extra_10_2, "11_1", 128, kernel=(1,1), pad=(0,0), \
+    #    stride=(1,1), act_type="relu", use_batchnorm=False)
+    #conv_extra_11_2, relu_extra_11_2 = conv_act_layer(relu_extra_11_1, "11_2", 256, kernel=(3,3), pad=(0,0), \
+    #    stride=(1,1), act_type="relu", use_batchnorm=False)
+
+    #source_layers (from layers) in caffe=
+    # ['res3b3_relu', 'res5c_relu', 'res5c_relu/conv1_2', 'res5c_relu/conv2_2', 'res5c_relu/conv3_2', 'pool6']
+    from_layers = [relu4_2, relu5_2, relu_extra_8_2, relu_extra_9_2, relu_extra_10_2, pool6]
+    #following parameters are vgg optimal, NOT resnet101! :TODO:
     sizes = [[.1, .141], [.2,.272], [.37, .447], [.54, .619], [.71, .79], [.88, .961]]
     ratios = [[1,2,.5], [1,2,.5,3,1./3], [1,2,.5,3,1./3], [1,2,.5,3,1./3], \
         [1,2,.5], [1,2,.5]]
     normalizations = [20, -1, -1, -1, -1, -1]
     steps = [ x / 300.0 for x in [8, 16, 32, 64, 100, 300]]
-    num_channels = [512]
-
+    num_channels = [256] #unsure about this, but seems to work
     loc_preds, cls_preds, anchor_boxes = multibox_layer(from_layers, \
         num_classes, sizes=sizes, ratios=ratios, normalization=normalizations, \
         num_channels=num_channels, clip=False, interm_layer=0, steps=steps)
@@ -176,8 +196,9 @@ def resnet(units, num_stages, filter_list, num_classes, image_shape, bottle_neck
 
     # group output
     out = mx.symbol.Group([cls_prob, loc_loss, cls_label, det])
+   # a = mx.viz.plot_network(anchor_boxes, shape={"data": (1, 1, 299, 299)}, node_attrs={"shape": 'rect', "fixedsize": 'false'})
+   # a.render("final")
     return out
-    
     ### OLD HEAD OF RESNET
     # Although kernel is not used here when global_pool=True, we should put one
     #pool1 = mx.symbol.Pooling(data=relu1, global_pool=True, kernel=(7, 7), pool_type='avg', name='pool1')
