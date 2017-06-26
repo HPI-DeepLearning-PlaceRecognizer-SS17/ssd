@@ -123,6 +123,7 @@ def resnet(units, num_stages, filter_list, num_classes, image_shape, bottle_neck
     relu1 = mx.sym.Activation(data=bn1, act_type='relu', name='relu1')
 
     ### ssd extra layers, taken from wei liu's resnet101_ssd_caffe.py AddExtraLayer###
+    # https://raw.githubusercontent.com/weiliu89/caffe/ssd/examples/ssd/ssd_pascal_resnet.py
     conv_extra_8_1, relu_extra_8_1 = conv_act_layer(body, "_extra8_1", 256, kernel=(1,1), pad=(0,0), \
         stride=(1,1), act_type="relu", use_batchnorm=False)
     conv_extra_8_2, relu_extra_8_2 = conv_act_layer(relu_extra_8_1, "_extra8_2", 512, kernel=(3,3), pad=(1,1), \
