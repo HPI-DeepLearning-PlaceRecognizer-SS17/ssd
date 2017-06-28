@@ -193,7 +193,7 @@ def resnet(units, num_stages, filter_list, num_classes, image_shape, bottle_neck
     #fc1 = mx.symbol.FullyConnected(data=flat, num_hidden=num_classes, name='fc1')
     #return mx.symbol.SoftmaxOutput(data=fc1, name='softmax')
 
-def get_symbol_train(num_classes=6, num_layers=101, image_shape=(3,300,300), conv_workspace=256, **kwargs):
+def get_symbol_train(num_classes=6, num_layers=34, image_shape=(3,300,300), conv_workspace=256, **kwargs):
     """
     Adapted from https://github.com/tornadomeet/ResNet/blob/master/train_resnet.py
     Original author Wei Wu
