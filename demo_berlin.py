@@ -6,7 +6,9 @@ import importlib
 import sys
 from detect.detector import Detector
 
-CLASSES = ("berlinerdom","brandenburgertor","rathausberlin","reichstag")
+#Order must be same as defined for training
+CLASSES = ("berlinerdom", "brandenburgertor", "fernsehturm", "none", "reichstag", "rathausberlin")
+RUN_ON_ALL_IMAGES = True
 
 def get_detector(net, prefix, epoch, data_shape, mean_pixels, ctx,
                  nms_thresh=0.5, force_nms=True):
@@ -41,7 +43,8 @@ def get_detector(net, prefix, epoch, data_shape, mean_pixels, ctx,
 def parse_args():
     parser = argparse.ArgumentParser(description='Single-shot detection network demo')
     parser.add_argument('--network', dest='network', type=str, default='vgg16_ssd_300',
-                        choices=['vgg16_ssd_300', 'vgg16_ssd_512'], help='which network to use')
+                        choices=['vgg16_ssd_300', 'vgg16_ssd_512', 'resnet101_ssd_300',
+                                  'resnet34_ssd_300', 'resnet18_ssd_300'], help='which network to use')
     parser.add_argument('--images', dest='images', type=str, default='./data/demo/dog.jpg',
                         help='run demo with images, use comma(without space) to seperate multiple images')
     parser.add_argument('--dir', dest='dir', nargs='?',
@@ -64,10 +67,10 @@ def parse_args():
                         help='green mean value')
     parser.add_argument('--mean-b', dest='mean_b', type=float, default=104,
                         help='blue mean value')
-    parser.add_argument('--thresh', dest='thresh', type=float, default=0.5,
-                        help='object visualize score threshold, default 0.5')
-    parser.add_argument('--nms', dest='nms_thresh', type=float, default=0.5,
-                        help='non-maximum suppression threshold, default 0.5')
+    parser.add_argument('--thresh', dest='thresh', type=float, default=0.999,
+                        help='object visualize score threshold, default 0.9')
+    parser.add_argument('--nms', dest='nms_thresh', type=float, default=0.999,
+                        help='non-maximum suppression threshold, default 0.9')
     parser.add_argument('--force', dest='force_nms', type=bool, default=True,
                         help='force non-maximum suppression on different class')
     parser.add_argument('--timer', dest='show_timer', type=bool, default=True,
@@ -94,5 +97,12 @@ if __name__ == '__main__':
                             (args.mean_r, args.mean_g, args.mean_b),
                             ctx, args.nms_thresh, args.force_nms)
     # run detection
-    detector.detect_and_visualize(image_list, args.dir, args.extension,
-                                  CLASSES, args.thresh, True)
+    if RUN_ON_ALL_IMAGES:
+        image_list = ""
+        demodir = os.path.dirname(os.path.realpath(__file__)) + "/data/demo/"
+        for filename in os.listdir(demodir):
+            detector.detect_and_visualize(demodir + filename, args.dir, args.extension,
+                                          CLASSES, args.thresh, True)
+    else:
+        detector.detect_and_visualize(image_list, args.dir, args.extension,
+                                      CLASSES, args.thresh, True)
