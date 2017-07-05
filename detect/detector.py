@@ -5,6 +5,7 @@ from timeit import default_timer as timer
 from dataset.testdb import TestDB
 from dataset.iterator import DetIter
 
+
 class Detector(object):
     """
     SSD detector which hold a detection network and wraps detection API
@@ -26,6 +27,7 @@ class Detector(object):
     ctx : mx.ctx
         device to use, if None, use mx.cpu() as default context
     """
+
     def __init__(self, symbol, model_prefix, epoch, data_shape, mean_pixels, \
                  batch_size=1, ctx=None):
         self.ctx = ctx
@@ -139,9 +141,9 @@ class Detector(object):
                         class_name = classes[cls_id]
 
                     plt.gca().text(xmin, ymin - 2,
-                                    '{:s} {:.3f}'.format(class_name, score),
-                                    bbox=dict(facecolor=colors[cls_id], alpha=0.5),
-                                    fontsize=12, color='white')
+                                   '{:s} {:.3f}'.format(class_name, score),
+                                   bbox=dict(facecolor=colors[cls_id], alpha=0.5),
+                                   fontsize=12, color='white')
         plt.show()
 
     def detect_and_visualize(self, im_list, root_dir=None, extension=None,
@@ -172,3 +174,57 @@ class Detector(object):
             img = cv2.imread(im_list[k])
             img[:, :, (0, 1, 2)] = img[:, :, (2, 1, 0)]
             self.visualize_detection(img, det, classes, thresh)
+
+    def detect_and_filter_and_visualize(self, img_path, root_dir=None, extension=None,
+                                        classes=[], thresh=0.6, show_timer=False, detPerClass=1,
+                                        ignoreClasses=['none']):
+        """
+        wrapper for im_detect and visualize_detection
+
+        Parameters:
+        ----------
+        img_path :  str or str
+            image path 
+        root_dir : str or None
+            directory of input images, optional if image path already
+            has full directory information
+        extension : str or None
+            image extension, eg. ".jpg", optional
+        detPerClass : int
+            amount of detections that will be shown for each class, sorted by conf
+        ignoreClasses : list of str representing class names
+            predictions of this classes will be ignored
+
+        Returns:
+        ----------
+
+        """
+        import cv2
+        import heapq as hq
+        classqueues = {}  # priority queues for each class, confidence as priority
+        for classname in classes:
+            classqueues[classname] = []
+        dets = self.im_detect(img_path, root_dir, extension, show_timer=show_timer)
+
+        print("Detection for image " + str(img_path))
+        for k, det in enumerate(dets):
+            for i in range(len(dets[k])):
+                detss = dets[k]
+                cls_id = int(detss[i][0])
+                classname = classes[cls_id]
+                if classname not in ignoreClasses:
+                    detss[i][1] = detss[i][1] * -1  # negate score so that heappop() gives the correct element
+                    hq.heappush(classqueues[classname], tuple(detss[i][1::]))
+        pruneddets = []
+        for classname in classes:
+            if classname not in ignoreClasses:
+                print('# Detections for class ' + classname + ' ' + str(len(classqueues[classname])))
+                for k in range(0, detPerClass):
+                    if len(classqueues[classname]) > 0:
+                        popped = list(hq.heappop(classqueues[classname]))
+                        popped[0] = popped[0] * -1
+                        popped.insert(0, classes.index(classname))
+                        pruneddets.append(np.array(popped))
+        img = cv2.imread(img_path)
+        img[:, :, (0, 1, 2)] = img[:, :, (2, 1, 0)]
+        self.visualize_detection(img, np.array(pruneddets), classes, thresh)

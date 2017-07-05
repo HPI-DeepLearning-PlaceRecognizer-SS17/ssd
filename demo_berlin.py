@@ -101,8 +101,10 @@ if __name__ == '__main__':
         image_list = ""
         demodir = os.path.dirname(os.path.realpath(__file__)) + "/data/demo/"
         for filename in os.listdir(demodir):
-            detector.detect_and_visualize(demodir + filename, args.dir, args.extension,
-                                          CLASSES, args.thresh, True)
+            x = filename[len(filename)-4::]
+            if x in ['.png', '.jpg', '.JPG', '.PNG']:
+                detector.detect_and_filter_and_visualize(demodir + filename, args.dir, args.extension,
+                                            CLASSES, args.thresh, True)
     else:
-        detector.detect_and_visualize(image_list, args.dir, args.extension,
+        detector.detect_and_filter_and_visualize(image_list, args.dir, args.extension,
                                       CLASSES, args.thresh, True)
