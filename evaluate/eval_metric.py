@@ -79,6 +79,11 @@ class MApMetric(mx.metric.EvalMetric):
         preds: mx.nd.array (m * 6)
             2-d array of detections, m objects(id-score-xmin-ymin-xmax-ymax)
         """
+
+        # python3 compat
+        labels = list(labels)
+        preds = list(preds)
+
         def iou(x, ys):
             """
             Calculate intersection-over-union overlap
