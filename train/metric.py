@@ -27,6 +27,10 @@ class MultiBoxMetric(mx.metric.EvalMetric):
         """
         Implementation of updating metrics
         """
+
+        # python3 compat
+        preds = list(preds)
+
         # get generated multi label from network
         cls_prob = preds[0].asnumpy()
         loc_loss = preds[1].asnumpy()
