@@ -1,8 +1,9 @@
 import mxnet as mx
 from common import conv_act_layer
 from common import multibox_layer
+from visualBackprop.insights.visual_backprop import build_visual_backprop_symbol
 
-def get_symbol_train(num_classes=20, nms_thresh=0.5, force_suppress=False, nms_topk=400):
+def get_symbol_train(num_classes=20, nms_thresh=0.5, force_suppress=False, nms_topk=400, useVisualBackprop=False):
     """
     Single-shot multi-box detection with VGG 16 layers ConvNet
     This is a modified version, with fc6/fc7 layers replaced by conv layers
@@ -19,6 +20,8 @@ def get_symbol_train(num_classes=20, nms_thresh=0.5, force_suppress=False, nms_t
         whether suppress different class objects
     nms_topk : int
         apply NMS to top K detections
+    useVisualBackprop: boolean
+        if set to true, a visual backprop symbol will be created and returned
 
     Returns:
     ----------
@@ -26,6 +29,8 @@ def get_symbol_train(num_classes=20, nms_thresh=0.5, force_suppress=False, nms_t
     """
     data = mx.symbol.Variable(name="data")
     label = mx.symbol.Variable(name="label")
+
+    # For training, group 1 and 2 are usually fixed
 
     # group 1
     conv1_1 = mx.symbol.Convolution(
@@ -36,6 +41,7 @@ def get_symbol_train(num_classes=20, nms_thresh=0.5, force_suppress=False, nms_t
     relu1_2 = mx.symbol.Activation(data=conv1_2, act_type="relu", name="relu1_2")
     pool1 = mx.symbol.Pooling(
         data=relu1_2, pool_type="max", kernel=(2, 2), stride=(2, 2), name="pool1")
+
     # group 2
     conv2_1 = mx.symbol.Convolution(
         data=pool1, kernel=(3, 3), pad=(1, 1), num_filter=128, name="conv2_1")
@@ -45,6 +51,7 @@ def get_symbol_train(num_classes=20, nms_thresh=0.5, force_suppress=False, nms_t
     relu2_2 = mx.symbol.Activation(data=conv2_2, act_type="relu", name="relu2_2")
     pool2 = mx.symbol.Pooling(
         data=relu2_2, pool_type="max", kernel=(2, 2), stride=(2, 2), name="pool2")
+
     # group 3
     conv3_1 = mx.symbol.Convolution(
         data=pool2, kernel=(3, 3), pad=(1, 1), num_filter=256, name="conv3_1")
@@ -58,6 +65,11 @@ def get_symbol_train(num_classes=20, nms_thresh=0.5, force_suppress=False, nms_t
     pool3 = mx.symbol.Pooling(
         data=relu3_3, pool_type="max", kernel=(2, 2), stride=(2, 2), \
         pooling_convention="full", name="pool3")
+
+    # Visual Backprop after group 3
+    if useVisualBackprop:
+        visualBackprop = build_visual_backprop_symbol(relu3_3)
+
     # group 4
     conv4_1 = mx.symbol.Convolution(
         data=pool3, kernel=(3, 3), pad=(1, 1), num_filter=512, name="conv4_1")
@@ -152,7 +164,11 @@ def get_symbol_train(num_classes=20, nms_thresh=0.5, force_suppress=False, nms_t
 
     # group output
     out = mx.symbol.Group([cls_prob, loc_loss, cls_label, det])
-    return out
+
+    if useVisualBackprop:
+        return out, visualBackprop
+    else:
+        return out
 
 def get_symbol(num_classes=20, nms_thresh=0.5, force_suppress=False, nms_topk=400):
     """

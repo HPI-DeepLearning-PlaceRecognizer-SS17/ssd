@@ -84,7 +84,7 @@ def train_net(net, train_path, num_classes, batch_size,
               use_difficult=False, class_names=None,
               voc07_metric=False, nms_topk=400, force_suppress=False,
               train_list="", val_path="", val_list="", iter_monitor=0,
-              monitor_pattern=".*", log_file=None):
+              monitor_pattern=".*", log_file=None, useVisualBackprop=False):
     """
     Wrapper for training phase.
 
@@ -183,8 +183,8 @@ def train_net(net, train_path, num_classes, batch_size,
     # load symbol
     sys.path.append(os.path.join(cfg.ROOT_DIR, 'symbol'))
     symbol_module = importlib.import_module("symbol_" + net)
-    net = symbol_module.get_symbol_train(num_classes, nms_thresh=nms_thresh,
-        force_suppress=force_suppress, nms_topk=nms_topk)
+    net, visualBackpropSymbol = symbol_module.get_symbol_train(num_classes, nms_thresh=nms_thresh,
+        force_suppress=force_suppress, nms_topk=nms_topk, useVisualBackprop=useVisualBackprop)
 
     # define layers with fixed weight/bias
     if freeze_layer_pattern.strip():
