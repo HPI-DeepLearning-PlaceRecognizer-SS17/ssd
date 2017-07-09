@@ -1,0 +1,16 @@
+# Data directories should be mounted as volumes, not merged into the image
+data/
+model/
+
+# Ignore changes made by the python interpreter
+# (no, docker does not have ** globbing)
+*.pyc
+*/*.pyc
+*/*/*.pyc
+*/*/*/*.pyc
+*/*/*/*/*.pyc
+__pycache__
+*/__pycache__
+*/*/__pycache__
+*/*/*/__pycache__
+*/*/*/*/__pycache__
