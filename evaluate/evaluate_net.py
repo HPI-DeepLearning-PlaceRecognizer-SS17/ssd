@@ -4,7 +4,7 @@ import sys
 import importlib
 import mxnet as mx
 from dataset.iterator import DetRecordIter
-from config.config import cfg
+from config.configuration import cfg
 from evaluate.eval_metric import MApMetric, VOC07MApMetric
 import logging
 

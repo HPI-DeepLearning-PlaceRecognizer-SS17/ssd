@@ -8,7 +8,7 @@ import re
 from dataset.iterator import DetRecordIter
 from train.metric import MultiBoxMetric
 from evaluate.eval_metric import MApMetric, VOC07MApMetric
-from config.config import cfg
+from config.configuration import cfg
 
 def convert_pretrained(name, args):
     """
