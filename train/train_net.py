@@ -9,6 +9,7 @@ from dataset.iterator import DetRecordIter
 from train.metric import MultiBoxMetric
 from evaluate.eval_metric import MApMetric, VOC07MApMetric
 from config.configuration import cfg
+from visualBackprop.insights.iter_visualisation import VisualBackpropPlotter
 
 def convert_pretrained(name, args):
     """
@@ -84,7 +85,7 @@ def train_net(net, train_path, num_classes, batch_size,
               use_difficult=False, class_names=None,
               voc07_metric=False, nms_topk=400, force_suppress=False,
               train_list="", val_path="", val_list="", iter_monitor=0,
-              monitor_pattern=".*", log_file=None, useVisualBackprop=False):
+              monitor_pattern=".*", log_file=None, useVisualBackprop=False, visualBackpropIp=None, visualBackpropPort=None):
     """
     Wrapper for training phase.
 
@@ -152,6 +153,12 @@ def train_net(net, train_path, num_classes, batch_size,
         regex pattern for monitoring network stats
     log_file : str
         log to file if enabled
+    useVisualBackprop : bool
+        Whether to use visual backprop
+    visualBackpropIp : str
+        Remote IP address to be used for visual backprop
+    visualBackpropPort : int
+        Remote port to be used for visual backprop
     """
     # set up logger
     logging.basicConfig()
@@ -229,7 +236,7 @@ def train_net(net, train_path, num_classes, batch_size,
                         fixed_param_names=fixed_param_names)
 
     # fit parameters
-    batch_end_callback = mx.callback.Speedometer(train_iter.batch_size, frequent=frequent)
+    batch_end_callbacks = [mx.callback.Speedometer(train_iter.batch_size, frequent=frequent)]
     epoch_end_callback = mx.callback.do_checkpoint(prefix)
     learning_rate, lr_scheduler = get_lr_scheduler(learning_rate, lr_refactor_step,
         lr_refactor_ratio, num_example, batch_size, begin_epoch)
@@ -247,11 +254,27 @@ def train_net(net, train_path, num_classes, batch_size,
     else:
         valid_metric = MApMetric(ovp_thresh, use_difficult, class_names, pred_idx=3)
 
+    # If we use visual backprop, set up the plotter
+    if useVisualBackprop:
+        # Set up visual backprop plotter
+        plotter = VisualBackpropPlotter(upstream_ip=visualBackpropIp, upstream_port=visualBackpropPort)
+        group = mx.symbol.Group([net, visualBackpropSymbol])
+
+        # Get the first validation image to be used for visual backprop
+        firstValidationBatch = next(val_iter)
+        val_iter.reset()
+        firstValidationImage = firstValidationBatch.data[0][0].asnumpy()
+        firstValidationLabel = firstValidationBatch.label[0][0].asnumpy()
+
+        # After each epoch, perform visual backprop on the selected image
+        callback = plotter.get_callback(group, firstValidationImage, firstValidationLabel, ctx, mod)
+        batch_end_callbacks.append(callback)
+
     mod.fit(train_iter,
             val_iter,
             eval_metric=MultiBoxMetric(),
             validation_metric=valid_metric,
-            batch_end_callback=batch_end_callback,
+            batch_end_callback=batch_end_callbacks,
             epoch_end_callback=epoch_end_callback,
             optimizer='sgd',
             optimizer_params=optimizer_params,
