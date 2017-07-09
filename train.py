@@ -86,7 +86,7 @@ def parse_args():
     parser.add_argument('--voc07', dest='use_voc07_metric', type=bool, default=True,
                         help='use PASCAL VOC 07 11-point metric')
     parser.add_argument('--cpu', dest='cpu', type=bool, default=False, help='Use CPU for training. Not recommended.')
-    parser.add_argument('--visualBackprop', dest='useVisualBackprop', type=bool, default=False,
+    parser.add_argument('--visualBackprop', dest='useVisualBackprop', type=bool, action='store_true',
                         help='Visualizes training with visual backprop')
 
     args = parser.parse_args()
@@ -136,4 +136,6 @@ if __name__ == '__main__':
               force_nms=args.force_nms,
               ovp_thresh=args.overlap_thresh,
               use_difficult=args.use_difficult,
-              voc07_metric=args.use_voc07_metric)
+              voc07_metric=args.use_voc07_metric,
+              useVisualBackprop=args.useVisualBackprop
+              )
