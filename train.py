@@ -15,9 +15,9 @@ def parse_args():
                         default=os.path.join(os.getcwd(), 'data', 'val.rec'), type=str)
     parser.add_argument('--val-list', dest='val_list', help='validation list to use',
                         default="", type=str)
-    parser.add_argument('--network', dest='network', type=str, default='vgg16_ssd_300',
+    parser.add_argument('--network', dest='network', type=str, default='resnet50',
                         choices=['vgg16_ssd_300', 'vgg16_ssd_512', 'resnet101_ssd_300',
-                                  'resnet34_ssd_300', 'resnet18_ssd_300'], help='which network to use')
+                                  'resnet34_ssd_300', 'resnet18_ssd_300', 'resnet50'], help='which network to use')
     parser.add_argument('--batch-size', dest='batch_size', type=int, default=32,
                         help='training batch size')
     parser.add_argument('--resume', dest='resume', type=int, default=-1,
@@ -38,11 +38,11 @@ def parse_args():
                         default=240, type=int)
     parser.add_argument('--frequent', dest='frequent', help='frequency of logging',
                         default=20, type=int)
-    parser.add_argument('--data-shape', dest='data_shape', type=int, default=300,
+    parser.add_argument('--data-shape', dest='data_shape', type=int, default=512,
                         help='set image shape')
     parser.add_argument('--label-width', dest='label_width', type=int, default=350,
                         help='force padding label width to sync across train and validation')
-    parser.add_argument('--lr', dest='learning_rate', type=float, default=0.004,
+    parser.add_argument('--lr', dest='learning_rate', type=float, default=0.002,
                         help='learning rate')
     parser.add_argument('--momentum', dest='momentum', type=float, default=0.9,
                         help='momentum')
