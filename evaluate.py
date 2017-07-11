@@ -53,6 +53,12 @@ def parse_args():
                         help='use PASCAL VOC 07 metric')
     parser.add_argument('--deploy', dest='deploy_net', help='Load network from model',
                         action='store_true', default=False)
+    parser.add_argument('--use-fp-metric', dest='use_fp', default=True, help='Evaluate false positives as well')
+    parser.add_argument('--false-positives-image-folder', dest='fp_image_folder', type=str,
+                        help='Images to be used for false postive metric', default='')
+    parser.add_argument('--false-positives-threshold', dest='fp_threshold', type=str,
+                        help='Images to be used for false postive metric', default='')
+
     args = parser.parse_args()
     return args
 
