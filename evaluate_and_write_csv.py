@@ -101,7 +101,7 @@ if __name__ == '__main__':
     if args.cpu:
         ctx = mx.cpu()
     else:
-        ctx = mx.gpu(args.gpu_id)
+        ctx = mx.gpu(int(args.gpu_id))
 
     image_glob = os.path.join(args.fp_image_folder, '*.jpg')
     image_list = glob.glob(image_glob)
